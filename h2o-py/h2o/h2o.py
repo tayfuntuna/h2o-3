@@ -2,17 +2,14 @@
 """
 h2o -- module for using H2O services.
 
-  :copyright: (c) 2016 H2O.ai
-  :license:   Apache License Version 2.0 (see LICENSE for details)
+:copyright: (c) 2016 H2O.ai
+:license:   Apache License Version 2.0 (see LICENSE for details)
 """
-from __future__ import division, print_function, absolute_import, unicode_literals
+from __future__ import absolute_import, division, print_function, unicode_literals
 import os
 import re
 import warnings
 
-from .compatibility import *
-from .debugging import *
-from .utils.shared_utils import quoted, is_list_of_lists, gen_header, py_tmp_key, urlopen
 from .connection import H2OConnection, H2OLocalServer, H2OConnectionError, H2OServerError
 from .expr import ExprNode
 from .job import H2OJob
@@ -29,27 +26,13 @@ from .estimators.random_forest import H2ORandomForestEstimator
 from .grid.grid_search import H2OGridSearch
 from .transforms.decomposition import H2OPCA
 from .transforms.decomposition import H2OSVD
+from .utils.debugging import *  # NOQA
+from .utils.compatibility import *  # NOQA
+from .utils.shared_utils import quoted, is_list_of_lists, gen_header, py_tmp_key, urlopen, h2o_deprecated
 
 
 warnings.simplefilter('always', DeprecationWarning)
 
-
-# the @deprecated decorator
-def deprecated(message):
-    from traceback import extract_stack
-    assert message, "`message` argument in @deprecated is required."
-
-    def deprecated_decorator(fun):
-        def decorator_invisible(*args, **kwargs):
-            stack = extract_stack()
-            assert len(stack) >= 2 and stack[-1][2] == "decorator_invisible", "Got confusing stack... %r" % stack
-            print("[WARNING] in %s line %d:" % (stack[-2][0], stack[-2][1]))
-            print("    >>> %s" % stack[-2][3])
-            print("        ^^^^ %s" % message)
-            return fun(*args, **kwargs)
-        return decorator_invisible
-
-    return deprecated_decorator
 
 
 h2oconn = None
@@ -58,15 +41,15 @@ h2oconn = None
 def connect(server=None, url=None, ip=None, port=None, https=None, verify_ssl_certificates=None, auth=None,
             proxy=None, cluster_name=None, verbose=True):
     """
-    Connect to an existing H₂O server, remote or local.
+    Connect to an existing H2O server, remote or local.
 
     There are two ways to connect to a server: either pass a `server` parameter containing an instance of
     an H2OLocalServer, or specify `ip` and `port` of the server that you want to connect to.
 
     :param server: An H2OLocalServer instance to connect to (optional).
     :param url: Full URL of the server to connect to (can be used instead of `ip` + `port` + `https`).
-    :param ip: The ip address (or host name) of the server where H₂O is running.
-    :param port: Port number that H₂O service is listening to.
+    :param ip: The ip address (or host name) of the server where H2O is running.
+    :param port: Port number that H2O service is listening to.
     :param https: Set to True to connect via https:// instead of http://.
     :param verify_ssl_certificates: When using https, setting this to False will disable SSL certificates verification.
     :param auth: Either a (username, password) pair for basic authentication, or one of the requests.auth
@@ -92,7 +75,7 @@ def api(endpoint, data=None, json=None, filename=None):
 def start(jar_path=None, nthreads=-1, enable_assertions=True, max_mem_size=None, min_mem_size=None, ice_root=None,
           port="54321+", verbose=True):
     """
-    Start a new local H₂O server.
+    Start a new local H2O server.
 
     This server object can then be passed to `h2o.connect()` to connect to that server; or you can launch multiple
     local servers and connect to only one of them. The servers will connect into a cloud.
@@ -101,7 +84,7 @@ def start(jar_path=None, nthreads=-1, enable_assertions=True, max_mem_size=None,
     :param enable_assertions: If True, then the server will start with the -ea JVM option (enabling code assertions).
     :param max_mem_size: Maximum heap size (jvm option Xmx), in bytes.
     :param min_mem_size: Minimum heap size (jvm option Xms), in bytes.
-    :param ice_root: A temporary directory where H₂O log files will be placed. If not specified, then the folder will
+    :param ice_root: A temporary directory where H2O log files will be placed. If not specified, then the folder will
         be chosen by `tempfile.mkdtemp()`.
     :param port: Port that the server should start listening to.
     :param verbose: Whether to print connection progress messages to the stdout or not.
@@ -110,7 +93,8 @@ def start(jar_path=None, nthreads=-1, enable_assertions=True, max_mem_size=None,
     return H2OLocalServer.start(**locals())
 
 
-def connection():
+def conn():
+    """Return current H2OConnection handler."""
     return h2oconn
 
 
@@ -205,18 +189,20 @@ def init(url=None, ip=None, port=None, https=None, insecure=False, username=None
 
 
 def lazy_import(path):
-    """Import a single file or collection of files.
-
-    Parameters
-    ----------
-      path : str
-        A path to a data file (remote or local).
     """
-    return [_import(p)[0] for p in path] if isinstance(path, (list, tuple)) else _import(path)
+    Import a single file or collection of files.
+
+    :param path: A path to a data file (remote or local).
+    """
+    if is_listlike(path):
+        return [_import(p)[0] for p in path]
+    else:
+        assert_is_str(path, "path")
+        return _import(path)
 
 
 def _import(path):
-    j = h2oconn.get_json(url_suffix="ImportFiles", path=path)
+    j = api("GET /3/ImportFiles", data={"path": path})
     if j['fails']: raise ValueError("ImportFiles of " + path + " failed on " + str(j['fails']))
     return j['destination_frames']
 
@@ -385,8 +371,7 @@ def import_sql_table(connection_url, table, username, password, columns=None, op
         columns = ', '.join(columns)
     p = {}
     p.update({k: v for k, v in locals().items() if k is not "p"})
-    p["_rest_version"] = 99
-    j = H2OJob(h2oconn.post_json(url_suffix="ImportSQLTable", **p), "Import SQL Table").poll()
+    j = H2OJob(api("POST /99/ImportSQLTable", data=p), "Import SQL Table").poll()
     return get_frame(j.dest_key)
 
 
@@ -432,8 +417,7 @@ def import_sql_select(connection_url, select_query, username, password, optimize
     """
     p = {}
     p.update({k: v for k, v in locals().items() if k is not "p"})
-    p["_rest_version"] = 99
-    j = H2OJob(h2oconn.post_json(url_suffix="ImportSQLTable", **p), "Import SQL Table").poll()
+    j = H2OJob(api("POST /99/ImportSQLTable", data=p), "Import SQL Table").poll()
     return get_frame(j.dest_key)
 
 
@@ -508,8 +492,9 @@ def parse_setup(raw_frames, destination_frame="", header=(-1, 0, 1), separator="
             raise ValueError("separator should be a single character string; got %r" % separator)
         kwargs["separator"] = ord(separator)
 
-    j = h2oconn.post_json(url_suffix="ParseSetup", source_frames=[quoted(id) for id in raw_frames], **kwargs)
-    if j['warnings']:
+    kwargs["source_frames"] = [quoted(id) for id in raw_frames]
+    j = api("POST /3/ParseSetup", data=kwargs)
+    if "warnings" in j and j["warnings"]:
         for w in j['warnings']:
             warnings.warn(w)
     # TODO: really should be url encoding...
@@ -653,17 +638,17 @@ def get_grid(grid_id):
     -------
       H2OGridSearch instance
     """
-    grid_json = h2oconn.get_json("Grids/" + grid_id, _rest_version=99)
+    grid_json = api("GET /99/Grids/%s" % grid_id)
     models = [get_model(key['name']) for key in grid_json['model_ids']]
     # get first model returned in list of models from grid search to get model class (binomial, multinomial, etc)
-    first_model_json = h2oconn.get_json("Models/" + grid_json['model_ids'][0]['name'])['models'][0]
+    first_model_json = api("GET /3/Models/%s" % grid_json['model_ids'][0]['name'])['models'][0]
     gs = H2OGridSearch(None, {}, grid_id)
     gs._resolve_grid(grid_id, grid_json, first_model_json)
     gs.models = models
     hyper_params = {param: set() for param in gs.hyper_names}
     for param in gs.hyper_names:
         for model in models:
-            hyper_params[param].add(model.full_parameters[param][u'actual_value'][0])
+            hyper_params[param].add(model.full_parameters[param]['actual_value'][0])
     hyper_params = {str(param): list(vals) for param, vals in hyper_params.items()}
     gs.hyper_params = hyper_params
     gs.model = model.__class__()
@@ -716,7 +701,7 @@ def log_and_echo(message):
     :return None
     """
     if message is None: message = ""
-    h2oconn.post_json("LogAndEcho", message=str(message))
+    api("POST /3/LogAndEcho", data={"message": str(message)})
 
 
 def remove(x):
@@ -737,21 +722,21 @@ def remove(x):
             rapids("(rm {})".format(xi_id))
             xi._ex = None
         elif isinstance(xi, H2OEstimator):
-            h2oconn.delete("DKV/" + xi.model_id)
+            api("DELETE /3/DKV/%s" % xi.model_id)
             xi._id = None
         elif is_str(xi):
             # string may be a Frame key name part of a rapids session... need to call rm thru rapids here
             try:
                 rapids("(rm {})".format(xi))
             except:
-                h2oconn.delete("DKV/" + xi)
+                api("DELETE /3/DKV/%s" % xi)
         else:
             raise ValueError('input to h2o.remove must one of: H2OFrame, H2OEstimator, or string')
 
 
 def remove_all():
     """Remove all objects from H2O."""
-    h2oconn.request("DELETE /3/DKV")
+    api("DELETE /3/DKV")
 
 
 def rapids(expr):
@@ -791,7 +776,7 @@ def frame(frame_id, exclude=""):
     -------
       Python dict containing the frame meta-information
     """
-    return h2oconn.get_json("Frames/" + frame_id + exclude)
+    return api("GET /3/Frames/%s" % (frame_id + exclude))
 
 
 def frames():
@@ -919,7 +904,7 @@ def save_model(model, path="", force=False):
       The path of the saved model (string)
     """
     path = os.path.join(os.getcwd() if path == "" else path, model.model_id)
-    return h2oconn.get_json("Models.bin/" + model.model_id, dir=path, force=force, _rest_version=99)["dir"]
+    return api("GET /99/Models.bin/%s" % model.model_id, data={"dir": path, "force": force})["dir"]
 
 
 def load_model(path):
@@ -940,7 +925,7 @@ def load_model(path):
       >> path = h2o.save_mode(my_model,dir=my_path)
       >> h2o.load_model(path)
     """
-    res = h2oconn.post_json("Models.bin/", dir=path, _rest_version=99)
+    res = api("POST /99/Models.bin/%s" % "", data={"dir": path})
     return get_model(res['models'][0]['model_id']['name'])
 
 
@@ -949,7 +934,7 @@ def cluster_status():
     but if a user tries to do any remoteSend, they will get a "cloud sick warning"
     Retrieve information on the status of the cluster running H2O.
     """
-    cluster = h2oconn.request("GET /3/Cloud?skip_ticks=true")
+    cluster = api("GET /3/Cloud?skip_ticks=true")
 
     print("Version: %s" % cluster.version)
     print("Cloud name: %s" % cluster.cloud_name)
@@ -987,9 +972,8 @@ def export_file(frame, path, force=False):
     force : bool
       Overwrite any preexisting file with the same path
     """
-    H2OJob(h2oconn.get_json(
-        "Frames/" + frame.frame_id + "/export/" + path + "/overwrite/" + ("true" if force else "false")),
-        "Export File").poll()
+    H2OJob(api("GET /3/Frames/%s/export/%s/overwrite/%s" % (frame.frame_id, path, str(force).lower())),
+           "Export File").poll()
 
 
 def cluster_info():
@@ -1007,14 +991,16 @@ def shutdown(prompt=True):
 
     :param prompt: (bool) A logical value indicating whether to prompt the user before shutting down the H2O server.
     """
-    h2oconn.shutdown(prompt)
+    h2oconn.shutdown_server(prompt)
 
 
 def create_frame(id=None, rows=10000, cols=10, randomize=True, value=0, real_range=100,
                  categorical_fraction=0.2, factors=100, integer_fraction=0.2, integer_range=100,
                  binary_fraction=0.1, binary_ones_fraction=0.02, time_fraction=0, string_fraction=0,
                  missing_fraction=0.01, response_factors=2, has_response=False, seed=None, seed_for_column_types=None):
-    """Data Frame Creation in H2O.
+    """
+    Data Frame Creation in H2O.
+
     Creates a data frame in H2O with real-valued, categorical, integer,
     and binary columns specified by the user.
 
@@ -1087,7 +1073,7 @@ def create_frame(id=None, rows=10000, cols=10, randomize=True, value=0, real_ran
     -------
       H2OFrame
     """
-    parms = {"dest": py_tmp_key(append=h2oconn.session_id()) if id is None else id,
+    parms = {"dest": py_tmp_key(append=h2oconn.session_id) if id is None else id,
              "rows": rows,
              "cols": cols,
              "randomize": randomize,
@@ -1107,7 +1093,7 @@ def create_frame(id=None, rows=10000, cols=10, randomize=True, value=0, real_ran
              "seed": -1 if seed is None else seed,
              "seed_for_column_types": -1 if seed_for_column_types is None else seed_for_column_types,
              }
-    H2OJob(h2oconn.post_json("CreateFrame", **parms), "Create Frame").poll()
+    H2OJob(api("POST /3/CreateFrame", data=parms), "Create Frame").poll()
     return get_frame(parms["dest"])
 
 
@@ -1144,14 +1130,14 @@ def interaction(data, factors, pairwise, max_factors, min_occurrence, destinatio
       H2OFrame
     """
     factors = [data.names[n] if is_int(n) else n for n in factors]
-    parms = {"dest": py_tmp_key(append=h2oconn.session_id()) if destination_frame is None else destination_frame,
+    parms = {"dest": py_tmp_key(append=h2oconn.session_id) if destination_frame is None else destination_frame,
              "source_frame": data.frame_id,
              "factor_columns": [quoted(f) for f in factors],
              "pairwise": pairwise,
              "max_factors": max_factors,
              "min_occurrence": min_occurrence,
              }
-    H2OJob(h2oconn.post_json("Interaction", **parms), "Interactions").poll()
+    H2OJob(api("POST /3/Interaction", data=parms), "Interactions").poll()
     return get_frame(parms["dest"])
 
 
@@ -1180,7 +1166,7 @@ def as_list(data, use_pandas=True):
 
 
 def network_test():
-    res = h2oconn.request("GET /3/NetworkTest")
+    res = api("GET /3/NetworkTest")
     res.table.show()
 
 
@@ -1215,25 +1201,37 @@ def list_timezones():
     return H2OFrame._expr(expr=ExprNode("listTimeZones"))._frame()
 
 
+def demo(funcname, interactive=True, echo=True, test=False):
+    """
+    H2O built-in demo facility.
+
+    :param funcname: A string that identifies the h2o python function to demonstrate.
+    :param interactive: If True, the user will be prompted to continue the demonstration after every segment.
+    :param echo: If True, the python commands that are executed will be displayed.
+    :param test: If True, `h2o.init()` will not be called (used for pyunit testing).
+
+    Example:
+    >>> import h2o
+    >>> h2o.demo("gbm")
+    """
+    import h2o.demos as h2odemo
+    demo_function = getattr(h2odemo, funcname, None)
+    if demo_function and type(demo_function) is type(demo):
+        demo_function(interactive, echo, test)
+    else:
+        print("Demo for %s is not available." % funcname)
+
+
+def data_file(relative_path):
+    """Return absolute path to a file within the 'h2o' folder."""
+    h2o_dir = os.path.split(__file__)[0]
+    return os.path.join(h2o_dir, relative_path)
+
 
 
 #-----------------------------------------------------------------------------------------------------------------------
 #  ALL DEPRECATED METHODS BELOW
 #-----------------------------------------------------------------------------------------------------------------------
-
-# the @h2o_deprecated decorator
-def h2o_deprecated(newfun=None):
-    def o(fun):
-        def i(*args, **kwargs):
-            print("\n")
-            if newfun is None:
-                raise DeprecationWarning("%s is deprecated." % fun.__name__)
-            else:
-                warnings.warn("%s is deprecated. Use %s instead." % (fun.__name__, newfun.__name__),
-                              category=DeprecationWarning, stacklevel=2)
-                return newfun(*args, **kwargs)
-        return i
-    return o
 
 @h2o_deprecated(import_file)
 def import_frame():

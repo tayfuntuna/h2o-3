@@ -1,17 +1,17 @@
 # -*- encoding: utf-8 -*-
 """
-Collection of methods for communication with H₂O servers.
+Collection of methods for communication with H2O servers.
 
-`H2OConnection` is the main class of this module, and it handles the connection itself. Public interface:
+`H2OConnection` is the main class of this module, and it handles the connection itself:
     hc = H2OConnection.open() : open a new connection
     hc.request(endpoint, [data|json|filename]) : make a REST API request to the server
     hc.info() : return information about the current connection
     hc.close() : close the connection
-    hc.session_id() : return the current session id
+    hc.session_id : current session id
 
-`H2OLocalServer`
+`H2OLocalServer` allows to start H2O servers on your local machine:
     hs = H2OLocalServer.start() : start a new local server
-    assert hs.is_running() : check if the server is running
+    hs.is_running() : check if the server is running
     hs.shutdown() : shut down the server
 
 :copyright: (c) 2016 H2O.ai
@@ -32,11 +32,11 @@ from warnings import warn
 import requests
 from requests.auth import AuthBase
 
-from .compatibility import *  # NOQA
-from .schemas.cloud import CloudV3
+from .schemas.cloud import H2OCluster
 from .schemas.error import H2OErrorV3, H2OModelBuilderErrorV3
 from .two_dim_table import H2OTwoDimTable
 from .utils.backward_compatibility import backwards_compatible, CallableString
+from .utils.compatibility import *  # NOQA
 from .utils.shared_utils import stringify_list
 
 __all__ = ("H2OConnection", "H2OLocalServer", "H2OStartupError", "H2OConnectionError", "H2OServerError",
@@ -50,39 +50,34 @@ __all__ = ("H2OConnection", "H2OLocalServer", "H2OStartupError", "H2OConnectionE
 
 class H2OConnection(backwards_compatible()):
     """
-    Single connection to an H₂O server.
+    Single connection to an H2O server.
 
     Instances of this class are created through a static method `.open()`:
-        conn = H2OConnection.open(...)    connect to an existing H₂O server;
-    We will autom
+        conn = H2OConnection.open(...)
+
     You can also use this class as a context manager:
-        with H2OConnection.connect() as conn:
+        with H2OConnection.open() as conn:
             conn.info().pprint()
     The connection will be automatically closed at the end of the `with ...` block.
 
     This class contains methods for performing the common REST methods GET, POST, and DELETE.
-
-    TODO: Maybe move start() and 4 private methods _jar_paths, _launch_server, _find_java, _tmp_file into a separate
-    class H2OLocalServer. Better communicate with the subprocess. Right now if the server dies, no exception is
-    raised anywhere. Also if the server decides to start listening to a port other than 54321, we have no way of
-    knowing this.
     """
 
     @staticmethod
     def open(server=None, url=None, ip=None, port=None, https=None, verify_ssl_certificates=True, auth=None,
              proxy=None, cluster_name=None, verbose=True):
         """
-        Establish connection to an existing H₂O server at address ip:port.
+        Establish connection to an existing H2O server.
 
         The connection is not kept alive, so what this method actually does is it attempts to connect to the
-        specified server, and checks that the server is healthy and responds to REST API requests. If the H₂O server
+        specified server, and checks that the server is healthy and responds to REST API requests. If the H2O server
         cannot be reached, an `H2OConnectionError` will be raised. On success this method returns a new
         `H2OConnection` object, and it is the only "official" way to create instances of this class.
 
-        There are 3 ways to specify which server to connect to (each of these settings are exclusive):
-            * Either passing a `server` option,
-            * Or passing the full `url` for the connection,
-            * Or providing a triple of parameters `ip`, `port`, `https`.
+        There are 3 ways to specify which server to connect to (these settings are mutually exclusive):
+            * Pass a `server` option,
+            * Pass the full `url` for the connection,
+            * Provide a triple of parameters `ip`, `port`, `https`.
 
         :param server: (H2OLocalServer) connect to the specified local server instance. There is a slight difference
             between connecting to a local server by specifying its ip and address, and connecting through
@@ -91,7 +86,7 @@ class H2OConnection(backwards_compatible()):
             error log in the exception information.
         :param url: Full URL of the server to connect to.
         :param ip: Target server's IP address or hostname (default "localhost").
-        :param port: H₂O server's port (default 54321).
+        :param port: H2O server's port (default 54321).
         :param https: If True then connect using https instead of http (default False).
         :param verify_ssl_certificates: If False then SSL certificate checking will be disabled (default True). This
             setting should rarely be disabled, as it makes your connection vulnerable to man-in-the-middle attacks. When
@@ -103,7 +98,7 @@ class H2OConnection(backwards_compatible()):
             will attempt to use a proxy specified in the environment (in HTTP_PROXY / HTTPS_PROXY variables). We
             check for the presence of these variables and issue a warning if they are found. In order to suppress
             that warning and use proxy from the environment, pass `proxy`="(default)".
-        :param cluster_name: Name of the H₂O cluster to connect to. This option is used from Steam only.
+        :param cluster_name: Name of the H2O cluster to connect to. This option is used from Steam only.
         :param verbose: If True (default), then connection progress info will be printed to the stdout.
         :return A new H2OConnection instance.
         :raise H2OConnectionError if the server cannot be reached.
@@ -182,7 +177,7 @@ class H2OConnection(backwards_compatible()):
 
     def request(self, endpoint, data=None, json=None, filename=None):
         """
-        Perform a REST API request to the backend H₂O server.
+        Perform a REST API request to the backend H2O server.
 
         :param endpoint: (str) The endpoint's URL, for example "GET /4/schemas/KeyV4"
         :param data: data payload for POST (and sometimes GET) requests. This should be a dictionary of simple
@@ -191,7 +186,7 @@ class H2OConnection(backwards_compatible()):
         :param filename: file to upload to the server. Cannot be used with `data` or `json`.
         :return: an H2OResponse object representing the server's response
         :raise ValueError if the endpoint's URL is invalid
-        :raise H2OConnectionError if the H₂O server cannot be reached (or connection is not initialized)
+        :raise H2OConnectionError if the H2O server cannot be reached (or connection is not initialized)
         :raise H2OServerError if there was a server error (http 500), or server returned malformed JSON
         :raise H2OResponseError if the server returned an H2OErrorV3 response (e.g. if the parameters were invalid)
         """
@@ -258,7 +253,7 @@ class H2OConnection(backwards_compatible()):
         :param refresh: If False, then retrieve the latest known info; if True then fetch the newest info from the
             server. Usually you want `refresh` to be True, except right after establishing a connection when it is
             still fresh.
-        :return: CloudV3 object.
+        :return: H2OCluster object.
         """
         if self._stage == 0: return None
         if refresh:
@@ -344,17 +339,17 @@ class H2OConnection(backwards_compatible()):
         assert_is_bool(prompt, "prompt")
         if prompt:
             question = "Are you sure you want to shutdown the H2O instance running at %s (Y/N)? " % self._base_url
-            response = input(question)  # works in Py2 & Py3 because it's future.builtins.input
+            response = input(question)  # works in Py2 & Py3 because redefined in h2o.utils.compatibility module
         else:
             response = "Y"
-        if response == "Y" or response == "y":
+        if response.lower() in {"y", "yes"}:
             self.request("POST /3/Shutdown")
             self.close()
 
 
     def cluster_is_up(self):
         """
-        Determine if an H₂O cluster is running or not.
+        Determine if an H2O cluster is running or not.
 
         :return: True if the cluster is up; False otherwise
         """
@@ -393,18 +388,18 @@ class H2OConnection(backwards_compatible()):
     #-------------------------------------------------------------------------------------------------------------------
 
     def __init__(self):
-        """[Internal] Please use H2OConnection.connect() or H2OConnection.start() to create H2OConnection objects."""
+        """[Private] Please use H2OConnection.connect() to create H2OConnection objects."""
         super(H2OConnection, self).__init__()
-        globals()["__H2OCONN__"] = self  # for backward-compatibility
+        globals()["__H2OCONN__"] = self  # for backward-compatibility: __H2OCONN__ is the latest instantiated object
         self._stage = 0             # 0 = not connected, 1 = connected, -1 = disconnected
-        self._session_id = None     # Rapids session id. Connection is considered established when this is not null
+        self._session_id = None     # Rapids session id; issued upon request only
         self._base_url = None       # "{scheme}://{ip}:{port}"
         self._verify_ssl_cert = None
         self._auth = None           # Authentication token
         self._proxies = None        # `proxies` dictionary in the format required by the requests module
         self._cluster_name = None
         self._cluster_info = None   # Latest result of "GET /3/Cloud" request
-        self._verbose = None
+        self._verbose = None        # Print detailed information about connection status
         self._requests_counter = 0  # how many API requests were made
         self._timeout = None        # timeout for a single request (in seconds)
         self._is_logging = False    # when True, log every request
@@ -418,7 +413,7 @@ class H2OConnection(backwards_compatible()):
         Test that the H2O cluster can be reached, and retrieve basic cloud status info.
 
         :param max_retries: Number of times to try to connect to the cloud (with 0.2s intervals)
-        :return Cloud information (a CloudV3 object)
+        :return Cloud information (an H2OCluster object)
         :raise H2OConnectionError, H2OServerError
         """
         self._print("Connecting to H2O server at " + self._base_url, end="..")
@@ -676,10 +671,10 @@ class H2OConnection(backwards_compatible()):
 
 class H2OLocalServer(object):
     """
-    Handle to an H₂O server launched locally.
+    Handle to an H2O server launched locally.
 
     Public interface:
-        hs = H2OLocalServer.start(...)   launch a new local H₂O server
+        hs = H2OLocalServer.start(...)   launch a new local H2O server
     """
 
     _TIME_TO_START = 10  # Maximum time we wait for the server to start up (in seconds)
@@ -690,7 +685,7 @@ class H2OLocalServer(object):
     def start(jar_path=None, nthreads=-1, enable_assertions=True, max_mem_size=None, min_mem_size=None,
               ice_root=None, port="54321+", verbose=True):
         """
-        Start new H₂O server on the local machine.
+        Start new H2O server on the local machine.
 
         :param jar_path: Path to the h2o.jar executable. If not given, then we will search for h2o.jar in the
             locations returned by `._jar_paths()`.
@@ -699,7 +694,7 @@ class H2OLocalServer(object):
         :param enable_assertions: If True, pass `-ea` option to the JVM.
         :param max_mem_size: Maximum heap size (jvm option Xmx), in bytes.
         :param min_mem_size: Minimum heap size (jvm option Xms), in bytes.
-        :param ice_root: A directory where H₂O stores its temporary files. Default location is determined by
+        :param ice_root: A directory where H2O stores its temporary files. Default location is determined by
             tempfile.mkdtemp().
         :param port: Port where to start the new server. This could be either an integer, or a string of the form
             "DDDDD+", indicating that the server should start looking for an open port starting from DDDDD and up.
@@ -1052,7 +1047,7 @@ class H2OStartupError(Exception):
 
 class H2OConnectionError(Exception):
     """
-    Raised when connection to an H₂O server cannot be established.
+    Raised when connection to an H2O server cannot be established.
 
     This can be raised if the connection was not initialized; or the server cannot be reached at the specified address;
     or there is an authentication error; or the request times out; etc.
@@ -1103,7 +1098,7 @@ class H2OResponse(dict):
             if k == "__schema" and is_str(v):
                 schema = v
                 break
-        if schema == "CloudV3": return CloudV3(keyvals)
+        if schema == "CloudV3": return H2OCluster(keyvals)
         if schema == "H2OErrorV3": return H2OErrorV3(keyvals)
         if schema == "H2OModelBuilderErrorV3": return H2OModelBuilderErrorV3(keyvals)
         if schema == "TwoDimTableV3": return H2OTwoDimTable.make(keyvals)

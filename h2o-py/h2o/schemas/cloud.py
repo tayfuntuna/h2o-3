@@ -1,18 +1,16 @@
-#!/usr/bin/env python
 # -*- encoding: utf-8 -*-
 #
 # Copyright 2016 H2O.ai;  Apache License Version 2.0 (see LICENSE for details)
 #
 from __future__ import division, print_function, absolute_import, unicode_literals
-# noinspection PyUnresolvedReferences
-from h2o.compatibility import *
+from h2o.utils.compatibility import *  # NOQA
 
 import sys
 from ..utils.shared_utils import get_human_readable_bytes, get_human_readable_time
 from ..display import H2ODisplay
 
 
-class CloudV3(object):
+class H2OCluster(object):
 
     def __init__(self, keyvals):
         self._props = {}
@@ -22,7 +20,7 @@ class CloudV3(object):
             if k in _cloud_v3_valid_keys:
                 self._props[k] = v
             else:
-                raise AttributeError("Attribute %s cannot be set on CloudV3 (= %r)" % (k, v))
+                raise AttributeError("Attribute %s cannot be set on H2OCluster (= %r)" % (k, v))
 
     @property
     def skip_ticks(self):
