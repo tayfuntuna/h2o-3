@@ -115,8 +115,7 @@ class H2OJob(object):
             for w in self.warnings:
                 if not(w == None):
                     warnings.warn(w)
-                else:
-                    break
+
         # check if failed... and politely print relevant message
         if self.status == "CANCELLED":
             raise EnvironmentError("Job with key {} was cancelled by the user.".format(self.job_key))
@@ -148,7 +147,7 @@ class H2OJob(object):
         self.status = self.job["status"]
         self.progress = min(self.job["progress"], 1)
         self.exception = self.job["exception"]
-        self.warnings = self.job["warnings"] if "warnings" in self.job else None
+        self.warnings = self.job["warnings"]
 
     def _is_running(self):
         return self.status == "RUNNING" or self.status == "CREATED"
