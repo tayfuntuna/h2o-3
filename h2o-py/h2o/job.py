@@ -148,7 +148,7 @@ class H2OJob(object):
         self.status = self.job["status"]
         self.progress = min(self.job["progress"], 1)
         self.exception = self.job["exception"]
-        self.warnings = self.job["warnings"]
+        self.warnings = self.job["warnings"] if "warnings" in self.job else None
 
     def _is_running(self):
         return self.status == "RUNNING" or self.status == "CREATED"
