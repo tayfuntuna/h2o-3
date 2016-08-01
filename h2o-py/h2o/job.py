@@ -54,7 +54,6 @@ class H2OJob(object):
 
         Poll timing is the following: first we wait 0.2s, then query the server,
         """
-        if self.__PROGRESS_BAR__: print()  # create a new line for distinguished progress bar
         self._polling = True
         poll_interval = 0.2
         start_time = time.time()
@@ -116,8 +115,8 @@ class H2OJob(object):
             for w in self.warnings:
                 if not(w == None):
                     warnings.warn(w)
-                else:
-                    break
+
+        
         # check if failed... and politely print relevant message
         if self.status == "CANCELLED":
             raise EnvironmentError("Job with key {} was cancelled by the user.".format(self.job_key))

@@ -8,12 +8,16 @@
 This file INTENTIONALLY has NO module dependencies!
 """
 from __future__ import division, print_function, absolute_import, unicode_literals
-# noinspection PyUnresolvedReferences
-from ..compatibility import *  # NOQA
-import os
+
 import imp
 import itertools
+import os
 import re
+import sys
+import warnings
+
+from h2o.utils.compatibility import *  # NOQA
+from h2o.utils.typechecks import assert_is_int, is_str, is_numeric
 
 # private static methods
 _id_ctr = 0
@@ -21,7 +25,7 @@ _id_ctr = 0
 
 def _py_tmp_key(append=""):
     global _id_ctr
-    _id_ctr = _id_ctr + 1
+    _id_ctr += 1
     return "py_" + str(_id_ctr) + append
 
 
@@ -204,7 +208,7 @@ def get_human_readable_bytes(size):
     """
     if size == 0: return "0"
     if size is None: return ""
-    assert_is_int(size, "size")
+    assert_is_int(size)
     assert size >= 0, "`size` cannot be negative, got %d" % size
     suffixes = "PTGMk"
     maxl = len(suffixes)
@@ -272,6 +276,16 @@ def get_human_readable_time(time_ms):
     return res.strip()
 
 
+def print2(msg, flush=False, end="\n"):
+    """
+    This function exists here ONLY because Sphinx.ext.autodoc gets into a bad state when seeing the print()
+    function. When in that state, autodoc doesn't display any errors or warnings, but instead completely
+    ignores the "bysource" member-order option.
+    """
+    print(msg, end=end)
+    if flush: sys.stdout.flush()
+
+
 gen_header = _gen_header
 py_tmp_key = _py_tmp_key
 locate = _locate
@@ -287,3 +301,35 @@ is_num_list = _is_num_list
 is_str_list = _is_str_list
 handle_python_lists = _handle_python_lists
 check_lists_of_lists = _check_lists_of_lists
+
+
+# the @deprecated decorator
+def deprecated(message):
+    from traceback import extract_stack
+    assert message, "`message` argument in @deprecated is required."
+
+    def deprecated_decorator(fun):
+        def decorator_invisible(*args, **kwargs):
+            stack = extract_stack()
+            assert len(stack) >= 2 and stack[-1][2] == "decorator_invisible", "Got confusing stack... %r" % stack
+            print("[WARNING] in %s line %d:" % (stack[-2][0], stack[-2][1]))
+            print("    >>> %s" % stack[-2][3])
+            print("        ^^^^ %s" % message)
+            return fun(*args, **kwargs)
+        return decorator_invisible
+
+    return deprecated_decorator
+
+def h2o_deprecated(newfun=None):
+    """The @h2o_deprecated decorator."""
+    def _o(fun):
+        def _i(*args, **kwargs):
+            print("\n")
+            if newfun is None:
+                raise DeprecationWarning("%s is deprecated." % fun.__name__)
+            else:
+                warnings.warn("%s is deprecated. Use %s instead." % (fun.__name__, newfun.__name__),
+                              category=DeprecationWarning, stacklevel=2)
+                return newfun(*args, **kwargs)
+        return _i
+    return _o

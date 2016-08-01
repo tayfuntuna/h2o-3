@@ -15,84 +15,102 @@ We're glad you're interested in learning more about H2O.  If you have
 questions or ideas to share, please post them to the open source community
 forum, `h2ostream <https://groups.google.com/forum/#!forum/h2ostream>`__.
 
-[ **Note**: To join our Google group on h2ostream, you need a Google
+**Note**: To join our Google group on h2ostream, you need a Google
 account (such as Gmail or Google+). On the h2ostream page, click the
 **Join group** button, then click the **New Topic** button to post a new
 message. You don't need to request or leave a message to join - you
-should be added to the group automatically. ]
+should be added to the group automatically.
 
 .. toctree::
-   :maxdepth: 3
+   :maxdepth: 2
    
-   SiteIntro
-   
-.. toctree::
-   :maxdepth: 3
-
-   Architecture
+   welcome
    
 .. toctree::
-   :maxdepth: 3
+   :maxdepth: 1
    
-   Download
+   downloading
    
 .. toctree::
-   :maxdepth: 3
+   :maxdepth: 2
+
+   quick-start-videos
    
-   StartH2O
-   H2O-DevS3Creds
-   H2O-DevHadoop
-   H2O-DevDocker
+.. toctree::
+   :maxdepth: 2
+   
+   starting-h2o
+   aws
+   hadoop
+   docker
 
 .. toctree::
+   :maxdepth: 2
 
-   datamunge/top
+   data-munging
 
 .. toctree::
+   :maxdepth: 2
 
-   Flow
+   flow
  
 .. toctree::
+   :maxdepth: 2
 
-   datascience/top
+   data-science
 
 .. toctree::
+   :maxdepth: 2
 
-   CrossValidation
+   cross-validation
 
 .. toctree::   
+   :maxdepth: 2
 
-   GridSearch
+   grid-search
 
 .. toctree::
+   :maxdepth: 2
 
-   POJO_QuickStart
+   pojo-quick-start
    
 .. toctree::
+   :maxdepth: 2
 
-   H2O-DevLogs
+   logs
 
 .. toctree::
+   :maxdepth: 2
 
-   Migration
+   productionizing
+
+.. toctree::
+   :maxdepth: 2
+
+   architecture
    
 .. toctree::
+   :maxdepth: 2
 
-   Security
+   security
    
 .. toctree::
+   :maxdepth: 1
 
-   FAQ
+   faq
    
 .. toctree::
+   :maxdepth: 1
 
    glossary
 
 .. toctree::
+   :maxdepth: 1
 
-   Videos
+   migrating
    
 .. toctree::
+   :maxdepth: 2
 
-   API-Reference
+   api-reference
 

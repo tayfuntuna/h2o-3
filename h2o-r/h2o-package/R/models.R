@@ -490,6 +490,9 @@ h2o.crossValidate <- function(model, nfolds, model.type = c("gbm", "glm", "deepl
 #'        match the dataset that was used to train the model, in terms of
 #'        column names, types, and dimensions. If newdata is passed in, then train, valid, and xval are ignored.
 #' @param train A logical value indicating whether to return the training metrics (constructed during training).
+#' 
+#' Note: when the trained h2o model uses balance_classes, the training metrics constructed during training will be from the balanced training dataset.
+#' For more information visit: \url{https://0xdata.atlassian.net/browse/TN-9}
 #' @param valid A logical value indicating whether to return the validation metrics (constructed during training).
 #' @param xval A logical value indicating whether to return the cross-validation metrics (constructed during training). 
 #' @param data (DEPRECATED) An H2OFrame. This argument is now called `newdata`.
@@ -503,6 +506,12 @@ h2o.crossValidate <- function(model, nfolds, model.type = c("gbm", "glm", "deepl
 #' prostate.hex$CAPSULE <- as.factor(prostate.hex$CAPSULE)
 #' prostate.gbm <- h2o.gbm(3:9, "CAPSULE", prostate.hex)
 #' h2o.performance(model = prostate.gbm, newdata=prostate.hex)
+#' 
+#' ## If model uses balance_classes
+#' ## the results from train = TRUE will not match the results from newdata = prostate.hex
+#' prostate.gbm.balanced <- h2o.gbm(3:9, "CAPSULE", prostate.hex, balance_classes = TRUE)
+#' h2o.performance(model = prostate.gbm.balanced, newdata = prostate.hex)
+#' h2o.performance(model = prostate.gbm.balanced, train = TRUE)
 #' }
 #' @export
 h2o.performance <- function(model, newdata=NULL, train=FALSE, valid=FALSE, xval=FALSE, data=NULL) {
@@ -555,6 +564,59 @@ h2o.performance <- function(model, newdata=NULL, train=FALSE, valid=FALSE, xval=
     if( is.null(model@model$cross_validation_metrics@metrics) ) return(NULL) # no newdata, but xval is true, return the crosss_validation metrics
     else                                                        return(model@model$cross_validation_metrics)  
   }
+}
+
+#' Create Model Metrics from predicted and actual values in H2O
+#'
+#' Given predicted values (target for regression, class-1 probabilities or binomial
+#' or per-class probabilities for multinomial), compute a model metrics object
+#'
+#' @param predicted An H2OFrame containing predictions
+#' @param actuals An H2OFrame containing actual values
+#' @param domain Vector with response factors for classification.
+#' @param distribution Distribution for regression.
+#' @return Returns an object of the \linkS4class{H2OModelMetrics} subclass.
+#' @examples
+#' \donttest{
+#' library(h2o)
+#' h2o.init()
+#' prosPath <- system.file("extdata", "prostate.csv", package="h2o")
+#' prostate.hex <- h2o.uploadFile(path = prosPath)
+#' prostate.hex$CAPSULE <- as.factor(prostate.hex$CAPSULE)
+#' prostate.gbm <- h2o.gbm(3:9, "CAPSULE", prostate.hex)
+#' pred <- h2o.predict(prostate.gbm, prostate.hex)[,3] ## class-1 probability
+#' h2o.make_metrics(pred,prostate.hex$CAPSULE)
+#' }
+#' @export
+h2o.make_metrics <- function(predicted, actuals, domain=NULL, distribution=NULL) {
+  params <- list()
+  pred <- h2o.getId(predicted)
+  act <- h2o.getId(actuals)
+  params[["predictions_frame"]] <- pred
+  params[["actuals_frame"]] <- act
+  params[["domain"]] <- domain
+  params[["distribution"]] <- distribution
+
+  if (is.null(domain) && !is.null(h2o.levels(actuals)))
+    domain = h2o.levels(actuals)
+
+  ## pythonify the domain
+  if (!is.null(domain)) {
+    out <- paste0('["',domain[1],'"')
+    for (d in 2:length(domain)) {
+      out <- paste0(out,',"',domain[d],'"')
+    }
+    out <- paste0(out, "]")
+    params[["domain"]] <- out
+  }
+  url <- paste0("ModelMetrics/predictions_frame/",pred,"/actuals_frame/",act)
+  res <- .h2o.__remoteSend(method = "POST", url, .params = params)
+  model_metrics <- res$model_metrics
+  metrics <- model_metrics[!(names(model_metrics) %in% c("__meta", "names", "domains", "model_category"))]
+  name <- "H2ORegressionMetrics"
+  if (!is.null(metrics$AUC)) name <- "H2OBinomialMetrics"
+  else if (!is.null(metrics$hit_ratio_table)) name <- "H2OMultinomialMetrics"
+  new(Class = name, metrics = metrics)
 }
 
 #' Retrieve the AUC
@@ -741,6 +803,7 @@ h2o.aic <- function(object, train=FALSE, valid=FALSE, xval=FALSE) {
 #' Retrieve the R2 value
 #'
 #' Retrieves the R2 value from an H2O model.
+#' Will return R^2 for GLM Models and will return NaN otherwise.
 #' If "train", "valid", and "xval" parameters are FALSE (default), then the training R2 value is returned. If more
 #' than one parameter is set to TRUE, then a named vector of R2s are returned, where the names are "train", "valid"
 #' or "xval".
@@ -756,7 +819,7 @@ h2o.aic <- function(object, train=FALSE, valid=FALSE, xval=FALSE) {
 #' h <- h2o.init()
 #' fr <- as.h2o(iris)
 #'
-#' m <- h2o.deeplearning(x=2:5,y=1,training_frame=fr)
+#' m <- h2o.glm(x=2:5,y=1,training_frame=fr)
 #'
 #' h2o.r2(m)
 #' }
