@@ -198,7 +198,7 @@ public class OrcParser extends Parser {
       if (noNull) {
         for (int rowIndex = 0; rowIndex < rowNumber; rowIndex++) {
           dout.addStrCol(cIdx, bs.set(Long.toString(oneColumn[rowIndex])));
-          check_Max_Value(oneColumn[rowIndex], cIdx, rowNumber, chunkIdx, dout);
+          check_Min_Value(oneColumn[rowIndex], cIdx, rowNumber, chunkIdx, dout);
         }
       } else {
         for (int rowIndex = 0; rowIndex < rowNumber; rowIndex++) {
@@ -206,7 +206,7 @@ public class OrcParser extends Parser {
             dout.addInvalidCol(cIdx);
           else {
             dout.addStrCol(cIdx, bs.set(Long.toString(oneColumn[rowIndex])));
-            check_Max_Value(oneColumn[rowIndex], cIdx, rowNumber, chunkIdx, dout);
+            check_Min_Value(oneColumn[rowIndex], cIdx, rowNumber, chunkIdx, dout);
           }
         }
       }
@@ -439,7 +439,7 @@ public class OrcParser extends Parser {
     if (noNull) {
       for (int rowIndex = 0; rowIndex < rowNumber; rowIndex++) {
         dout.addNumCol(cIdx, oneColumn[rowIndex], 0);
-        check_Max_Value(oneColumn[rowIndex], cIdx, rowNumber, chunkIdx, dout);
+        check_Min_Value(oneColumn[rowIndex], cIdx, rowNumber, chunkIdx, dout);
       }
     } else {
       for (int rowIndex = 0; rowIndex < rowNumber; rowIndex++) {
@@ -447,7 +447,7 @@ public class OrcParser extends Parser {
           dout.addInvalidCol(cIdx);
         else {
           dout.addNumCol(cIdx, oneColumn[rowIndex], 0);
-          check_Max_Value(oneColumn[rowIndex], cIdx, rowNumber, chunkIdx, dout);
+          check_Min_Value(oneColumn[rowIndex], cIdx, rowNumber, chunkIdx, dout);
         }
       }
     }
@@ -455,7 +455,7 @@ public class OrcParser extends Parser {
 
   /**
    * This method is written to check and make sure any value written to a column of type long
-   * is less than Long.MAX_VALUE.  If this is not true, a warning will be passed to the user.
+   * is more than Long.MIN_VALUE.  If this is not true, a warning will be passed to the user.
    *
    * @param l
    * @param cIdx
@@ -463,9 +463,9 @@ public class OrcParser extends Parser {
    * @param chunkIdx
    * @param dout
      */
-  private void check_Max_Value(long l, int cIdx, Long rowNumber, int chunkIdx, ParseWriter dout) {
-    if (l >= Long.MAX_VALUE) {
-      String warning = " Long.MAX_VALUE: " + l + " is found in column "+cIdx+" row "+rowNumber +
+  private void check_Min_Value(long l, int cIdx, Long rowNumber, int chunkIdx, ParseWriter dout) {
+    if (l <= Long.MIN_VALUE) {
+      String warning = " Long.MIN_VALUE: " + l + " is found in column "+cIdx+" row "+rowNumber +
               " of stripe "+chunkIdx +".  This value is used for sentinel and will not be parsed correctly.";
 
       dout.addError(new ParseWriter.ParseErr(warning, chunkIdx, rowNumber, -2L));

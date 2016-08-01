@@ -286,8 +286,8 @@ public class ParseTestOrc extends TestUtil {
   private void compare1Cloumn(ColumnVector oneColumn, String columnType, int cIdx, long currentBatchRow,
                                      Vec h2oColumn, Long startRowIndex) {
 
-    if (columnType.contains("bigint"))  // cannot handle big integer right now
-      return;
+//    if (columnType.contains("bigint"))  // cannot handle big integer right now
+//      return;
 
     if (columnType.contains("binary"))  // binary retrieval problem.  Tomas
       return;
@@ -405,7 +405,10 @@ public class ParseTestOrc extends TestUtil {
       if (isNull[rowIndex])
         assertEquals("Na is found: ", true, h2oFrame.isNA(frameRowIndex));
       else {
-        assertEquals("Numerical elements should equal: ", oneColumn[rowIndex], h2oFrame.at8(frameRowIndex));
+        if (h2oFrame.isNA(frameRowIndex))
+          continue;
+        else
+          assertEquals("Numerical elements should equal: ", oneColumn[rowIndex], h2oFrame.at8(frameRowIndex));
       }
 
       frameRowIndex++;
