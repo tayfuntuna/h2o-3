@@ -1,3 +1,5 @@
+.. _using-flow:
+
 Using Flow - H2O's Web UI
 =========================
 
@@ -760,7 +762,7 @@ Available options vary depending on model type.
    :alt: Model Builder
 
 
-In the **Build a Model** cell, select an algorithm from the drop-down menu. (Refer to the `Data Science Algorithms <datascience/top.html>`_ section for information about the available algorithms.)
+In the **Build a Model** cell, select an algorithm from the drop-down menu. (Refer to the `Data Science Algorithms <data-science.html>`_ section for information about the available algorithms.)
 
  - **K-means**: Create a K-Means model.
  - **Generalized Linear Model**: Create a Generalized Linear model.
