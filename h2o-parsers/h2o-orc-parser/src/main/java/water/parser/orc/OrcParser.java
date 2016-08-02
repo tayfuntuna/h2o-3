@@ -77,12 +77,11 @@ public class OrcParser extends Parser {
   @Override
   protected final ParseWriter parseChunk(int chunkId, ParseReader din, ParseWriter dout) {
     // only do something if within file size and the orc file is not empty
-    List<StripeInformation> stripesInfo = ((OrcParseSetup) this._setup).getOrcFileReader().getStripes();
+    List<StripeInformation> stripesInfo = ((OrcParseSetup) this._setup).getStripes();
     if(stripesInfo.size() == 0) return dout; // empty file
     OrcParseSetup setup = (OrcParseSetup) this._setup;
     StripeInformation thisStripe = stripesInfo.get(chunkId);  // get one stripe
     // write one stripe of data to H2O frame
-    final String [] columnNames = setup.getColumnNames();
     String [] orcTypes = setup.getColumnTypesString();
     boolean[] toInclude = setup.getToInclude();
 
@@ -524,7 +523,10 @@ public class OrcParser extends Parser {
 
     public void setOrcFileReader(Reader orcFileReader) {
       this.orcFileReader = orcFileReader;
+      this.stripesInfo = orcFileReader.getStripes();
     }
+    private transient List<StripeInformation> stripesInfo;
+    public List<StripeInformation> getStripes() {return stripesInfo;}
   }
 
   // types are flattened in pre-order tree walk, here we just count the number of fields for non-primitve types
