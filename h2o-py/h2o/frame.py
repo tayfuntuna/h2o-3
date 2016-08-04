@@ -1350,6 +1350,13 @@ class H2OFrame(object):
           H2OFrame with the respective dropped columns or rows. Returns a new H2OFrame.
         """
         if axis == 1:
+            if is_str(index):
+                index = self.names.index(index)
+                fr = H2OFrame._expr(expr=ExprNode("cols", self, -(index + 1)), cache=self._ex._cache)
+                fr._ex._cache.ncols -= 1
+                fr._ex._cache.names = self.names[:index] + self.names[index + 1:]
+                fr._ex._cache.types = {name: self.types[name] for name in fr._ex._cache.names}
+                return fr
             if all(isinstance(item, int) for item in index):
                 for i in range(len(index)):
                         index[i] = index[i] + 1
